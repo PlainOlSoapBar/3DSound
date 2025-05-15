@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { setupResizeHandler } from './utils/resizeHandler';
 
 // Scene
 const scene = new THREE.Scene();
@@ -31,21 +32,4 @@ function animate() {
 }
 renderer.setAnimationLoop( animate );
 
-// Window Resizing
-var tanFOV = Math.tan( ( ( Math.PI / 180 ) * camera.fov / 2 ) );
-var windowHeight = window.innerHeight;
-
-// Event Listeners
-addEventListener( 'resize', () => {
-    camera.aspect = window.innerWidth / window.innerHeight;
-    
-    // adjust the FOV
-    camera.fov = ( 360 / Math.PI ) * Math.atan( tanFOV * ( window.innerHeight / windowHeight ) );
-    
-    camera.updateProjectionMatrix();
-    camera.lookAt( scene.position );
-
-    renderer.setSize( window.innerWidth, window.innerHeight );
-    renderer.render( scene, camera );
-    
-});
+setupResizeHandler(camera, renderer, scene);
