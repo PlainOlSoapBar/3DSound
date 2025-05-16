@@ -10,6 +10,8 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 let scene: THREE.Scene, camera: THREE.PerspectiveCamera, renderer: THREE.WebGLRenderer, controls: OrbitControls;
 let audio: THREE.Audio, listener: THREE.AudioListener, audioLoader: THREE.AudioLoader;
 let uploadForm: HTMLFormElement, uploadedAudio: HTMLInputElement;
+let bloomComposer: EffectComposer;
+let mesh: THREE.Mesh;
 
 init();
 
@@ -46,6 +48,10 @@ function init() {
     },
     false
   );
+
+  // Listener
+  listener = new THREE.AudioListener();
+  camera.add(listener);
 }
 
 function setAudio() {
@@ -61,9 +67,6 @@ function setAudio() {
 
   const audioURL = URL.createObjectURL(audioFile);
 
-  listener = new THREE.AudioListener();
-  camera.add(listener);
-
   audio = new THREE.Audio(listener);
 
   audioLoader = new THREE.AudioLoader();
@@ -78,12 +81,25 @@ function setAudio() {
 
 function resetVisualizer() {
   scene.children = scene.children.filter((obj) => obj.type === 'Camera' || obj.type.includes('Light'));
+
+  // Dispose old mesh before creating new one
+  if (mesh) {
+    scene.remove(mesh);
+    mesh.geometry.dispose();
+    (mesh.material as THREE.Material).dispose();
+    mesh = undefined as any;
+  }
 }
 
 function startVisualizer() {
   // Don't start if no audio is provided
   if (!audio) {
     return;
+  }
+
+  // Dispose previous render targets
+  if (bloomComposer) {
+    bloomComposer.dispose();
   }
 
   // Audio analyzer
@@ -102,7 +118,7 @@ function startVisualizer() {
     fragmentShader,
   });
   const geometry = new THREE.IcosahedronGeometry(4, 30);
-  const mesh = new THREE.Mesh(geometry, material);
+  mesh = new THREE.Mesh(geometry, material);
   scene.add(mesh);
 
   // Lighting
@@ -111,7 +127,7 @@ function startVisualizer() {
   const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.4, 0.8, 0.5);
 
   const outputPass = new OutputPass();
-  const bloomComposer = new EffectComposer(renderer);
+  bloomComposer = new EffectComposer(renderer);
   bloomComposer.addPass(renderScene);
   bloomComposer.addPass(bloomPass);
   bloomComposer.addPass(outputPass);
@@ -136,7 +152,6 @@ function startVisualizer() {
 
     controls.update();
 
-    requestAnimationFrame(animate);
     bloomComposer.render(); // this does the actual render
   }
 
