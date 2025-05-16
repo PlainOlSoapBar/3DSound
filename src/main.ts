@@ -1,16 +1,18 @@
 import * as THREE from 'three';
-import { createNoise3D } from 'simplex-noise';
-import alea from 'alea';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { vertexShader } from './shaders/vertexShader';
+import { fragmentShader } from './shaders/fragmentShader';
 
 let scene: THREE.Scene, camera: THREE.PerspectiveCamera, renderer: THREE.WebGLRenderer, controls: OrbitControls;
-let audio: HTMLAudioElement | undefined, uploadForm: HTMLFormElement, uploadedAudio: HTMLInputElement;
+let audio: THREE.Audio, listener: THREE.AudioListener, audioLoader: THREE.AudioLoader;
+let uploadForm: HTMLFormElement, uploadedAudio: HTMLInputElement;
 
 init();
 
 function init() {
   // Scene
   scene = new THREE.Scene();
+  scene.fog = new THREE.Fog( 0x000000, 10, 15 );
 
   // Camera
   camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -20,8 +22,7 @@ function init() {
   // Render setup
   renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.setClearColor('#ffffff');
-  renderer.setAnimationLoop(animate);
+  renderer.setClearColor('#000000');
   document.body.appendChild(renderer.domElement);
 
   // Orbit controls
@@ -45,22 +46,29 @@ function init() {
   );
 }
 
-// Animation loop for controls
-function animate() {
-  controls.update();
-}
-
 function setAudio() {
-  if (audio) {
-    audio.pause();
+  const audioFile = uploadedAudio.files?.[0];
+  if (!audioFile) {
+    return;
   }
 
-  const audioFile = uploadedAudio.files?.[0];
-  if (!audioFile) return;
+  if (audio) {
+    audio.pause();
+    audio.remove();
+  }
 
   const audioURL = URL.createObjectURL(audioFile);
-  audio = new Audio(audioURL);
-  audio.play();
+
+  listener = new THREE.AudioListener();
+  camera.add(listener);
+
+  audio = new THREE.Audio(listener);
+
+  audioLoader = new THREE.AudioLoader();
+  audioLoader.load(audioURL, function (buffer) {
+    audio.setBuffer(buffer);
+    audio.play();
+  });
 
   resetVisualizer();
   startVisualizer();
@@ -71,102 +79,52 @@ function resetVisualizer() {
 }
 
 function startVisualizer() {
-  const noise = createNoise3D(alea('seed'));
-
+  // Don't start if no audio is provided
   if (!audio) {
     return;
   }
 
-  const context = new AudioContext();
-  const src = context.createMediaElementSource(audio);
-  const analyser = context.createAnalyser();
-  src.connect(analyser);
-  analyser.connect(context.destination);
-  analyser.fftSize = 512;
-  const bufferLength = analyser.frequencyBinCount;
-  const dataArray = new Uint8Array(bufferLength);
+  // Audio analyzer
+  const analyser = new THREE.AudioAnalyser(audio, 32);
+  const uniforms = {
+    u_time: { value: 0.0 },
+    u_frequency: { value: 0.0 },
+  };
 
   // Sphere Mesh
-  const geometry = new THREE.IcosahedronGeometry(20, 3);
-  const material = new THREE.MeshLambertMaterial({
-    color: '#e0e0e0',
+  const material = new THREE.ShaderMaterial({
     side: THREE.DoubleSide,
+    uniforms,
     wireframe: true,
+    vertexShader,
+    fragmentShader,
   });
-  const sphere = new THREE.Mesh(geometry, material);
-  sphere.castShadow = true;
-  sphere.receiveShadow = true;
-  scene.add(sphere);
+
+  const clock = new THREE.Clock();
+
+  const geometry = new THREE.IcosahedronGeometry(4, 30);
+  const mesh = new THREE.Mesh(geometry, material);
+  scene.add(mesh);
 
   // Lighting
   const ambientLight = new THREE.AmbientLight(0x000000, 10);
   scene.add(ambientLight);
 
+  // Window resizing
   window.addEventListener('resize', () => {
     renderer.setSize(window.innerWidth, window.innerHeight);
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
   });
 
-  function render() {
-    analyser.getByteFrequencyData(dataArray);
+  // Animation loop
+  function animate() {
+    uniforms.u_frequency.value = analyser.getAverageFrequency();
+    uniforms.u_time.value = clock.getElapsedTime();
 
-    const lowerHalf = dataArray.slice(0, dataArray.length / 2 - 1);
-    const upperHalf = dataArray.slice(dataArray.length / 2 - 1, dataArray.length - 1);
-
-    const lowerMax = max(lowerHalf);
-    const upperAvg = average(upperHalf);
-
-    const lowerMaxFr = Math.pow(lowerMax / lowerHalf.length, 1);
-    const upperAvgFr = Math.pow(upperAvg / upperHalf.length, 1.5);
-
-    WarpSphere(sphere, modulate(Math.pow(lowerMaxFr, 0.8), 0, 1, 0, 8), modulate(upperAvgFr, 0, 1, 0, 4));
-    requestAnimationFrame(render);
+    controls.update();
     renderer.render(scene, camera);
   }
 
-  function WarpSphere(mesh: THREE.Mesh<THREE.IcosahedronGeometry, THREE.Material | THREE.Material[]>, bassFr: number, treFr: number): void {
-    const geometry = mesh.geometry as THREE.IcosahedronGeometry;
-    const position = geometry.attributes.position;
-    const vertex = new THREE.Vector3();
-    const offset: number = geometry.parameters.radius;
-    const amp: number = 5;
-    const time: number = window.performance.now();
-    const rf: number = 0.00001;
-
-    for (let i = 0; i < position.count; i++) {
-      vertex.fromBufferAttribute(position, i);
-      vertex.normalize();
-      const distance = offset + bassFr + noise(vertex.x + time * rf * 4, vertex.y + time * rf * 6, vertex.z + time * rf * 7) * amp * treFr * 2;
-      vertex.multiplyScalar(distance);
-      position.setXYZ(i, vertex.x, vertex.y, vertex.z);
-    }
-    position.needsUpdate = true;
-    geometry.computeVertexNormals();
-  }
-  render();
-}
-
-// Helper functions
-function fractionate(val: number, minVal: number, maxVal: number) {
-  return (val - minVal) / (maxVal - minVal);
-}
-
-function modulate(val: number, minVal: number, maxVal: number, outMin: number, outMax: number) {
-  var fr = fractionate(val, minVal, maxVal);
-  var delta = outMax - outMin;
-  return outMin + fr * delta;
-}
-
-function average(arr: Uint8Array) {
-  var total = arr.reduce(function (sum, b) {
-    return sum + b;
-  });
-  return total / arr.length;
-}
-
-function max(arr: Uint8Array) {
-  return arr.reduce(function (a, b) {
-    return Math.max(a, b);
-  });
+  renderer.setAnimationLoop(animate);
 }
