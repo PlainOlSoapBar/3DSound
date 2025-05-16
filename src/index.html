@@ -17,26 +17,51 @@
       <label for="upload-file">Upload</label>
       <input type="submit" id="upload-file" name="submit" hidden />
     </form>
+
+    <!-- Now playing -->
+    <p class="now-playing" id="song-label">Now Playing: </p>
   </body>
 
   <!-- Sets label as the chosen file's name -->
   <script>
-    document.addEventListener('DOMContentLoaded', function () {
-      const fileInput = document.getElementById('choose-file');
-      const fileLabel = document.getElementById('file-label');
+    const fileInput = document.getElementById('choose-file');
+    const fileLabel = document.getElementById('file-label');
+    const songLabel = document.getElementById('song-label');
+    let songName;
 
-      fileInput.addEventListener('change', function () {
-        if (fileInput.files && fileInput.files.length > 0) {
-          fileLabel.textContent = fileInput.files[0].name;
-        } else {
-          fileLabel.textContent = 'Choose audio file';
-        }
-      });
+    fileInput.addEventListener('change', function () {
+      if (fileInput.files && fileInput.files.length > 0) {
+        fileLabel.textContent = fileInput.files[0].name;
+      } else {
+        fileLabel.textContent = 'Choose audio file';
+      }
     });
+
+    const uploadForm = document.getElementById('upload-form');
+    uploadForm.addEventListener(
+      'submit',
+      () => {
+        // Revert choose file button text
+        fileLabel.textContent = 'Choose audio file';
+
+        // Update Now Playing
+        songName = fileInput.files[0].name;
+        songName = songName.substring(0, songName.lastIndexOf('.')); // Remove file extension
+        songLabel.textContent = 'Now Playing: ' + songName;
+      },
+      false
+    );
   </script>
 </html>
 
 <style>
+  label {
+    cursor: pointer;
+    background-color: #2c2c2c;
+    padding: 0.7rem;
+    border-radius: 0.5rem;
+    z-index: 10000;
+  }
   .upload-container {
     position: fixed;
     z-index: 10 !important;
@@ -45,11 +70,12 @@
     gap: 0.5rem;
     padding: 0.5rem;
   }
-  label {
-    cursor: pointer;
-    background-color: #2c2c2c;
-    padding: 0.7rem;
-    border-radius: 0.5rem;
-    z-index: 10000;
+  .now-playing {
+    position: fixed;
+    z-index: 9 !important;
+    background-color: transparent;
+     text-align: center;
+     width: 100%;
+    padding-top: 4rem;
   }
 </style>

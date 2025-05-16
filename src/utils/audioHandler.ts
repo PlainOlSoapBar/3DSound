@@ -21,7 +21,7 @@ export function setupAudio(camera: THREE.Camera, uploadedAudio?: any) {
     const audioLoader = new THREE.AudioLoader();
     audioLoader.load(audioURL, function (buffer) {
       audio.setBuffer(buffer);
-      audio.setVolume(0.3);
+      audio.setVolume(0.1);
       audio.play();
     });
   }
