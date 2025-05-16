@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { vertexShader } from './shaders/vertexShader';
 import { fragmentShader } from './shaders/fragmentShader';
+import { GUI } from 'lil-gui';
 import { EffectComposer } from 'three/addons/postprocessing//EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
@@ -12,6 +13,17 @@ let audio: THREE.Audio, listener: THREE.AudioListener, audioLoader: THREE.AudioL
 let uploadForm: HTMLFormElement, uploadedAudio: HTMLInputElement;
 let bloomComposer: EffectComposer;
 let mesh: THREE.Mesh;
+
+interface BloomParams {
+  red: number;
+  green: number;
+  blue: number;
+  strength: number;
+  radius: number;
+  threshold: number;
+}
+
+let params: BloomParams;
 
 init();
 
@@ -52,6 +64,16 @@ function init() {
   // Listener
   listener = new THREE.AudioListener();
   camera.add(listener);
+
+  // GUI
+  params = {
+    red: 1.0,
+    green: 1.0,
+    blue: 1.0,
+    strength: 0.4,
+    radius: 0.8,
+    threshold: 0.5,
+  };
 }
 
 function setAudio() {
@@ -107,6 +129,9 @@ function startVisualizer() {
   const uniforms = {
     u_time: { value: 0.0 },
     u_frequency: { value: 0.0 },
+    u_red: { value: params.red },
+    u_green: { value: params.green },
+    u_blue: { value: params.blue },
   };
 
   // Sphere Mesh
@@ -124,13 +149,38 @@ function startVisualizer() {
   // Lighting
   const renderScene = new RenderPass(scene, camera);
 
-  const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.4, 0.8, 0.5);
+  const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), params.strength, params.radius, params.threshold);
 
   const outputPass = new OutputPass();
   bloomComposer = new EffectComposer(renderer);
   bloomComposer.addPass(renderScene);
   bloomComposer.addPass(bloomPass);
   bloomComposer.addPass(outputPass);
+
+  // GUI
+  const gui = new GUI();
+
+  const colorsFolder = gui.addFolder('Colors');
+  colorsFolder.add(params, 'red', 0, 1).onChange(function (value: number) {
+    uniforms.u_red.value = Number(value);
+  });
+  colorsFolder.add(params, 'green', 0, 1).onChange(function (value: number) {
+    uniforms.u_green.value = Number(value);
+  });
+  colorsFolder.add(params, 'blue', 0, 1).onChange(function (value: number) {
+    uniforms.u_blue.value = Number(value);
+  });
+
+  const bloomFolder = gui.addFolder('Bloom');
+  bloomFolder.add(params, 'threshold', 0, 1).onChange(function (value: number) {
+    bloomPass.threshold = Number(value);
+  });
+  bloomFolder.add(params, 'strength', 0, 3).onChange(function (value: number) {
+    bloomPass.strength = Number(value);
+  });
+  bloomFolder.add(params, 'radius', 0, 1).onChange(function (value: number) {
+    bloomPass.radius = Number(value);
+  });
 
   // Window resizing
   window.addEventListener('resize', () => {

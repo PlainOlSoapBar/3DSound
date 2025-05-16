@@ -14,6 +14,7 @@
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-opener": "^2",
     "alea": "^1.0.1",
+    "lil-gui": "^0.20.0",
     "simplex-noise": "^4.0.3",
     "tailwindcss": "^4.1.6",
     "three": "^0.176.0"
