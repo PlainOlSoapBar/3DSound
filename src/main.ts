@@ -2,6 +2,10 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { vertexShader } from './shaders/vertexShader';
 import { fragmentShader } from './shaders/fragmentShader';
+import { EffectComposer } from 'three/addons/postprocessing//EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
 let scene: THREE.Scene, camera: THREE.PerspectiveCamera, renderer: THREE.WebGLRenderer, controls: OrbitControls;
 let audio: THREE.Audio, listener: THREE.AudioListener, audioLoader: THREE.AudioLoader;
@@ -12,11 +16,10 @@ init();
 function init() {
   // Scene
   scene = new THREE.Scene();
-  scene.fog = new THREE.Fog( 0x000000, 10, 15 );
 
   // Camera
   camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-  camera.position.z = 100;
+  camera.position.z = 10;
   scene.add(camera);
 
   // Render setup
@@ -27,7 +30,6 @@ function init() {
 
   // Orbit controls
   controls = new OrbitControls(camera, renderer.domElement);
-  camera.position.set(0, 20, 100);
   controls.enableDamping = true; // Requires animation loop to function
   controls.dampingFactor = 0.01;
   controls.enablePan = false;
@@ -99,31 +101,43 @@ function startVisualizer() {
     vertexShader,
     fragmentShader,
   });
-
-  const clock = new THREE.Clock();
-
   const geometry = new THREE.IcosahedronGeometry(4, 30);
   const mesh = new THREE.Mesh(geometry, material);
   scene.add(mesh);
 
   // Lighting
-  const ambientLight = new THREE.AmbientLight(0x000000, 10);
-  scene.add(ambientLight);
+  const renderScene = new RenderPass(scene, camera);
+
+  const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.4, 0.8, 0.5);
+
+  const outputPass = new OutputPass();
+  const bloomComposer = new EffectComposer(renderer);
+  bloomComposer.addPass(renderScene);
+  bloomComposer.addPass(bloomPass);
+  bloomComposer.addPass(outputPass);
 
   // Window resizing
   window.addEventListener('resize', () => {
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    camera.aspect = window.innerWidth / window.innerHeight;
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+
+    camera.aspect = width / height;
     camera.updateProjectionMatrix();
+
+    renderer.setSize(width, height);
+    bloomComposer.setSize(width, height);
   });
 
   // Animation loop
+  const clock = new THREE.Clock();
   function animate() {
     uniforms.u_frequency.value = analyser.getAverageFrequency();
     uniforms.u_time.value = clock.getElapsedTime();
 
     controls.update();
-    renderer.render(scene, camera);
+
+    requestAnimationFrame(animate);
+    bloomComposer.render(); // this does the actual render
   }
 
   renderer.setAnimationLoop(animate);
