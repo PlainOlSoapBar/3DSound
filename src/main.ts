@@ -13,7 +13,7 @@ scene.add(camera);
 // Rendering
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setClearColor('#000000');
+renderer.setClearColor('#ffffff');
 renderer.setAnimationLoop(animate);
 document.body.appendChild(renderer.domElement);
 
@@ -94,11 +94,15 @@ function startVisualizer() {
     wireframe: true,
   });
   const sphere = new THREE.Mesh(geometry, material);
+  					sphere.castShadow = true;
+					sphere.receiveShadow = true;
   scene.add(sphere);
 
   // Lighting
-  var ambientLight = new THREE.AmbientLight(0xaaaaaa, 10);
+  const ambientLight = new THREE.AmbientLight(0x000000, 10);
   scene.add(ambientLight);
+
+
 
   window.addEventListener('resize', () => {
     renderer.setSize(window.innerWidth, window.innerHeight);
