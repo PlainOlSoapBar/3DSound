@@ -1,56 +1,54 @@
 import * as THREE from 'three';
 import { createNoise3D } from 'simplex-noise';
+import alea from 'alea';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-// Scene
-const scene = new THREE.Scene();
+let scene: THREE.Scene, camera: THREE.PerspectiveCamera, renderer: THREE.WebGLRenderer, controls: OrbitControls;
+let audio: HTMLAudioElement | undefined, uploadForm: HTMLFormElement, uploadedAudio: HTMLInputElement;
 
-// Camera
-const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-camera.position.z = 100;
-scene.add(camera);
+init();
 
-// Rendering
-const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setClearColor('#ffffff');
-renderer.setAnimationLoop(animate);
-document.body.appendChild(renderer.domElement);
+function init() {
+  // Scene
+  scene = new THREE.Scene();
 
-function render() {
-  renderer.render(scene, camera);
+  // Camera
+  camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+  camera.position.z = 100;
+  scene.add(camera);
+
+  // Render setup
+  renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setClearColor('#ffffff');
+  renderer.setAnimationLoop(animate);
+  document.body.appendChild(renderer.domElement);
+
+  // Orbit controls
+  controls = new OrbitControls(camera, renderer.domElement);
+  camera.position.set(0, 20, 100);
+  controls.enableDamping = true; // Requires animation loop to function
+  controls.dampingFactor = 0.01;
+  controls.enablePan = false;
+  controls.update();
+
+  // Uploading audio file
+  uploadForm = document.getElementById('upload-form') as HTMLFormElement;
+  uploadedAudio = document.getElementById('choose-file') as HTMLInputElement;
+  uploadForm.addEventListener(
+    'submit',
+    (e) => {
+      e.preventDefault(); // Prevent empty uploads
+      setAudio();
+    },
+    false
+  );
 }
 
-render();
-
-const controls = new OrbitControls(camera, renderer.domElement);
-camera.position.set(0, 20, 100);
-controls.enableDamping = true; // Requires animation loop to function
-controls.dampingFactor = 0.01;
-controls.enablePan = false;
-controls.update();
-
-// Animation loop
+// Animation loop for controls
 function animate() {
   controls.update();
-  render();
 }
-
-// Visualizer
-const noise = createNoise3D();
-let audio: HTMLAudioElement | undefined;
-
-const uploadForm = document.getElementById('upload-form') as HTMLFormElement;
-const uploadedAudio = document.getElementById('choose-file') as HTMLInputElement;
-
-uploadForm.addEventListener(
-  'submit',
-  (e) => {
-    e.preventDefault(); // Prevent empty uploads
-    setAudio();
-  },
-  false
-);
 
 function setAudio() {
   if (audio) {
@@ -73,6 +71,8 @@ function resetVisualizer() {
 }
 
 function startVisualizer() {
+  const noise = createNoise3D(alea('seed'));
+
   if (!audio) {
     return;
   }
@@ -94,15 +94,13 @@ function startVisualizer() {
     wireframe: true,
   });
   const sphere = new THREE.Mesh(geometry, material);
-  					sphere.castShadow = true;
-					sphere.receiveShadow = true;
+  sphere.castShadow = true;
+  sphere.receiveShadow = true;
   scene.add(sphere);
 
   // Lighting
   const ambientLight = new THREE.AmbientLight(0x000000, 10);
   scene.add(ambientLight);
-
-
 
   window.addEventListener('resize', () => {
     renderer.setSize(window.innerWidth, window.innerHeight);
