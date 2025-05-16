@@ -1,18 +1,42 @@
 import * as THREE from 'three';
 import { createNoise3D } from 'simplex-noise';
-import { setupResizeHandler } from './utils/resizeHandler';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
+// Scene
 const scene = new THREE.Scene();
 
+// Camera
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 camera.position.z = 100;
 scene.add(camera);
 
+// Rendering
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setClearColor('#000000');
+renderer.setAnimationLoop(animate);
 document.body.appendChild(renderer.domElement);
 
+function render() {
+  renderer.render(scene, camera);
+}
+
+render();
+
+const controls = new OrbitControls(camera, renderer.domElement);
+camera.position.set(0, 20, 100);
+controls.enableDamping = true; // Requires animation loop to function
+controls.dampingFactor = 0.01;
+controls.enablePan = false;
+controls.update();
+
+// Animation loop
+function animate() {
+  controls.update();
+  render();
+}
+
+// Visualizer
 const noise = createNoise3D();
 let audio: HTMLAudioElement | undefined;
 
@@ -38,9 +62,14 @@ function setAudio() {
 
   const audioURL = URL.createObjectURL(audioFile);
   audio = new Audio(audioURL);
-  audio.play(); // Optional: auto-play after loading
+  audio.play();
 
+  resetVisualizer();
   startVisualizer();
+}
+
+function resetVisualizer() {
+  scene.children = scene.children.filter((obj) => obj.type === 'Camera' || obj.type.includes('Light'));
 }
 
 function startVisualizer() {
@@ -57,17 +86,19 @@ function startVisualizer() {
   const bufferLength = analyser.frequencyBinCount;
   const dataArray = new Uint8Array(bufferLength);
 
+  // Sphere Mesh
   const geometry = new THREE.IcosahedronGeometry(20, 3);
   const material = new THREE.MeshLambertMaterial({
-    color: '#e0e0e0', // light gray
+    color: '#e0e0e0',
+    side: THREE.DoubleSide,
     wireframe: true,
   });
   const sphere = new THREE.Mesh(geometry, material);
-
-  const light = new THREE.DirectionalLight('#ffffff', 0.8);
-  light.position.set(0, 50, 100);
-  scene.add(light);
   scene.add(sphere);
+
+  // Lighting
+  var ambientLight = new THREE.AmbientLight(0xaaaaaa, 10);
+  scene.add(ambientLight);
 
   window.addEventListener('resize', () => {
     renderer.setSize(window.innerWidth, window.innerHeight);
@@ -84,8 +115,8 @@ function startVisualizer() {
     const lowerMax = max(lowerHalf);
     const upperAvg = average(upperHalf);
 
-    const lowerMaxFr = lowerMax / lowerHalf.length;
-    const upperAvgFr = upperAvg / upperHalf.length;
+    const lowerMaxFr = Math.pow(lowerMax / lowerHalf.length, 1);
+    const upperAvgFr = Math.pow(upperAvg / upperHalf.length, 1.5);
 
     WarpSphere(sphere, modulate(Math.pow(lowerMaxFr, 0.8), 0, 1, 0, 8), modulate(upperAvgFr, 0, 1, 0, 4));
     requestAnimationFrame(render);
@@ -137,6 +168,3 @@ function max(arr: Uint8Array) {
     return Math.max(a, b);
   });
 }
-
-// Automatically adjusts content to window resizes
-setupResizeHandler(camera, renderer, scene);
