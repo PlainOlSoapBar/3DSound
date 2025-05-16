@@ -7,7 +7,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   </head>
 
-  <body>
+  <body style="background-color:black">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/102/three.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/simplex-noise/2.3.0/simplex-noise.min.js"></script>
     <script type="module" src="/main.ts" defer></script>
 
     <!-- Upload audio -->
@@ -19,7 +21,7 @@
     </form>
 
     <!-- Now playing -->
-    <p class="now-playing" id="song-label">Now Playing: </p>
+    <p class="now-playing" id="song-label">Now Playing:</p>
   </body>
 
   <!-- Sets label as the chosen file's name -->
@@ -55,6 +57,7 @@
 </html>
 
 <style>
+  
   label {
     cursor: pointer;
     background-color: #2c2c2c;
@@ -74,8 +77,8 @@
     position: fixed;
     z-index: 9 !important;
     background-color: transparent;
-     text-align: center;
-     width: 100%;
+    text-align: center;
+    width: 100%;
     padding-top: 4rem;
   }
 </style>
